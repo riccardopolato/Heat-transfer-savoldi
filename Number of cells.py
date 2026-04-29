@@ -74,7 +74,7 @@ cp = 1005 # Specific heat capacity at constant pressure (J/kg*K)
 rho = 1.225 # Density of air (kg/m^3)
 mu = 1.81e-5 # Dynamic viscosity of air (kg/m*s)
 k_air = 0.0257 # Thermal conductivity of air (W/m*K)
-Pr = 1 # Prandtl number for air 
+Pr = 0.71 # Prandtl number for air 
 k_r = 0.2 # Thermal conductivity of resin (W/m*K)
 
 # Parameters of flow
@@ -91,7 +91,6 @@ V_max = (125 - 20 - 2) * (55 - 2) * (65 - 2) * 1e-9 # Maximum volume (m^3)
 df = pd.read_csv("Heat-transfer-savoldi/Dati_TPMS.csv", sep=";")
 
 # Creazione dizionario con i dati del CSV organizzato per tipo di TPMS.
-# Convertiamo le unità di misura: s_mm (mm) in L (m), e phi (%) in phi_tot (-)
 tpms_dict = {}
 for _, row in df.iterrows():
     tipo = str(row["Type"]).strip().upper()
@@ -106,7 +105,7 @@ for _, row in df.iterrows():
     }
 
 # Selezioniamo un TPMS e una taglia di cella (s) di default per i calcoli successivi
-tpms_type = "D" # Tipo di TPMS (G, D, o P)
+tpms_type = "G" # Tipo di TPMS ('G' per Gyroid, 'D' per Diamond, o 'P' per Primitive)
 cell_size = 10
 thickness = 1e-3 # Thickness of the wall between hot and cold fluids (m)
 
@@ -120,11 +119,6 @@ phi_single = 0.5*phi_tot
 D_h_single = 4 * phi_single * Lc**3 / A_wet
 
 N_cell_max = V_max / Lc**3 # Maximum number of cells that can fit in the given volume
-
-# consideriamo zero offset tra le due superfici, quindi A_wet_hot = A_wet_cold = A_wet
-# D_h_hot = 4 * phi * L**3 / A_wet_hot # Hydraulic diameter (m)
-# D_h_cold = 4 * phi * L**3 / A_wet_cold # Hydraulic diameter (m)
-# D_h = 4 * phi_single * L**3 / A_wet # Hydraulic diameter (m)
 
 # Reynolds number
 Re_h  = (4 * m_h * Lc) / (A_wet * mu) # Reynolds number for the hot fluid
@@ -154,8 +148,8 @@ if hx_type == 'countercurrent':
     DT1 = T_hi - T_co
     DT2 = T_ho - T_ci
 elif hx_type == 'cocurrent':
-    DT1 = T_hi - T_co
-    DT2 = T_ho - T_ci
+    DT1 = T_hi - T_ci
+    DT2 = T_ho - T_co
 DT_ml =  (DT1 - DT2) / np.log(DT1 / DT2) # Log mean temperature difference (°C)
 
 # Calculate the required heat transfer area and the number of cells
