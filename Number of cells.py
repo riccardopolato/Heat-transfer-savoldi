@@ -88,36 +88,36 @@ eps =  np.linspace(0.5, 0.9, 10) # Effectiveness of the heat exchanger (range: 0
 V_max = (125 - 20 - 2) * (55 - 2) * (65 - 2) * 1e-9 # Maximum volume (m^3)
 
 # Parameters of the heat exchanger to be extracted
-df = pd.read_csv("Heat-transfer-savoldi/dati_tabella.csv")
+df = pd.read_csv("Heat-transfer-savoldi/Dati_TPMS.csv", sep=";")
 
 # Creazione dizionario con i dati del CSV organizzato per tipo di TPMS.
 # Convertiamo le unità di misura: s_mm (mm) in L (m), e phi (%) in phi_tot (-)
 tpms_dict = {}
 for _, row in df.iterrows():
-    tipo = row["tipo"]
+    tipo = str(row["Type"]).strip().upper()
     if tipo not in tpms_dict:
         tpms_dict[tipo] = {}
         
     s_mm = int(row["s_mm"])
     tpms_dict[tipo][s_mm] = {
         "L": s_mm * 1e-3,              # Characteristic length (m)
-        "phi_tot": row["phi"] / 100.0, # Porosity (fraction)
-        "Dh": row["Dh_mm"] * 1e-3      # Hydraulic diameter (m)
+        "phi_tot": row["Phi"] / 100.0, # Porosity (fraction)
+        "A_wet": row["A_wet_m2"]     # Wetted area (m^2)
     }
 
 # Selezioniamo un TPMS e una taglia di cella (s) di default per i calcoli successivi
-tpms_type = "G" # Tipo di TPMS (G, D, o P)
+tpms_type = "D" # Tipo di TPMS (G, D, o P)
 cell_size = 10
 thickness = 1e-3 # Thickness of the wall between hot and cold fluids (m)
 
 Lc = tpms_dict[tpms_type][cell_size]["L"]
 phi_tot = tpms_dict[tpms_type][cell_size]["phi_tot"]
-#A_wet = tpms_dict[tpms_type][cell_size]["A_wet"]
-D_h_single = tpms_dict[tpms_type][cell_size]["Dh"]/2
+A_wet = tpms_dict[tpms_type][cell_size]["A_wet"]
 
 
 phi_single = 0.5*phi_tot
-A_wet = 4 * phi_single * Lc**3 / D_h_single # Wetted area per cell (m^2)
+# Hydraulic diameter for one side (half-porosity domain)
+D_h_single = 4 * phi_single * Lc**3 / A_wet
 
 N_cell_max = V_max / Lc**3 # Maximum number of cells that can fit in the given volume
 
