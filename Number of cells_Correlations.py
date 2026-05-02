@@ -88,7 +88,7 @@ eps =  np.linspace(0.5, 0.9, 10) # Effectiveness of the heat exchanger (range: 0
 V_max = (125 - 20 - 2) * (55 - 2) * (65 - 2) * 1e-9 # Maximum volume (m^3)
 
 # Parameters of the heat exchanger to be extracted
-df = pd.read_csv("Heat-transfer-savoldi/Dati_TPMS.csv", sep=";")
+df = pd.read_csv("Dati_TPMS.csv", sep=";")
 
 # Creazione dizionario con i dati del CSV organizzato per tipo di TPMS.
 tpms_dict = {}
@@ -108,6 +108,7 @@ for _, row in df.iterrows():
 tpms_type = "G" # Tipo di TPMS ('G' per Gyroid, 'D' per Diamond, o 'P' per Primitive)
 cell_size = 10
 thickness = 1e-3 # Thickness of the wall between hot and cold fluids (m)
+NxNy = 25 # Number of cells in the x and y directions
 
 Lc = tpms_dict[tpms_type][cell_size]["L"]
 phi_tot = tpms_dict[tpms_type][cell_size]["phi_tot"]
@@ -121,8 +122,8 @@ D_h_single = 4 * phi_single * Lc**3 / A_wet
 N_cell_max = V_max / Lc**3 # Maximum number of cells that can fit in the given volume
 
 # Reynolds number
-Re_h  = (4 * m_h * Lc) / (A_wet * mu) # Reynolds number for the hot fluid
-Re_c  = (4 * m_c * Lc) / (A_wet * mu) # Reynolds number for the cold fluid
+Re_h  = (4 * m_h/NxNy * Lc) / (A_wet * mu) # Reynolds number for the hot fluid
+Re_c  = (4 * m_c/NxNy * Lc) / (A_wet * mu) # Reynolds number for the cold fluid
 
 # Heat transfer coefficients
 Nu_hot = Nusselt_number(Re_h, Pr, tpms_type) # Nusselt number for the hot fluid
@@ -156,7 +157,8 @@ DT_ml =  (DT1 - DT2) / np.log(DT1 / DT2) # Log mean temperature difference (°C)
 A = q / (U * DT_ml) # Required heat transfer area (m^2)
 N_cell = A / A_wet # Number of cells required
 
-
+Nz_max = N_cell_max / NxNy # Maximum number of cells in the z direction based on the volume constraint
+Nz = N_cell / NxNy # Number of cells in the z direction required to achieve the desired UA
 # %% Output results
 plt.figure(figsize=(10, 6))
 plt.subplot(1, 2, 1)
@@ -166,8 +168,8 @@ plt.xlabel('Effectiveness (ε)')
 plt.ylabel('Required Area (m^2)')
 plt.grid()
 plt.subplot(1, 2, 2)
-plt.plot(eps, N_cell, marker='o', color='orange')
-plt.axhline(y=N_cell_max, color='red', linestyle='--', label='Max cells (volume constraint)')
+plt.plot(eps, Nz, marker='o', color='orange')
+plt.axhline(y=Nz_max, color='red', linestyle='--', label='Maximum Nz')
 plt.legend()
 plt.title('Number of cells required vs Effectiveness')
 plt.xlabel('Effectiveness (ε)')
