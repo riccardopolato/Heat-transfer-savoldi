@@ -85,94 +85,94 @@ T_ci = 20 # Inlet temperature of cold fluid (°C) [= T_amb = 18/25°C]
 eps =  np.linspace(0.5, 0.9, 10) # Effectiveness of the heat exchanger (range: 0.5 to 0.9)
 
 # Maximum volume of the heat exchanger
-V_max = (125 - 20 - 2) * (55 - 2) * (65 - 2) * 1e-9 # Maximum volume (m^3)
-
-# Parameters of the heat exchanger to be extracted
-df = pd.read_csv("Dati_TPMS.csv", sep=";")
-
-# Creazione dizionario con i dati del CSV organizzato per tipo di TPMS.
-tpms_dict = {}
-for _, row in df.iterrows():
-    tipo = str(row["Type"]).strip().upper()
-    if tipo not in tpms_dict:
-        tpms_dict[tipo] = {}
-        
-    s_mm = int(row["s_mm"])
-    tpms_dict[tipo][s_mm] = {
-        "L": s_mm * 1e-3,              # Characteristic length (m)
-        "phi_tot": row["Phi"] / 100.0, # Porosity (fraction)
-        "A_wet": row["A_wet_m2"]     # Wetted area (m^2)
-    }
-
-# Selezioniamo un TPMS e una taglia di cella (s) di default per i calcoli successivi
-tpms_type = "G" # Tipo di TPMS ('G' per Gyroid, 'D' per Diamond, o 'P' per Primitive)
-cell_size = 10
-thickness = 1e-3 # Thickness of the wall between hot and cold fluids (m)
-NxNy = 25 # Number of cells in the x and y directions
-
-Lc = tpms_dict[tpms_type][cell_size]["L"]
-phi_tot = tpms_dict[tpms_type][cell_size]["phi_tot"]
-A_wet = tpms_dict[tpms_type][cell_size]["A_wet"]
+Axy_max = (55 - 2) * (65 - 2) * 1e-6 # Maximum cross-sectional area of the HX (m^2)
+Lz_max = (125 - 20 - 2) * 1e-3 # Maximum length of the HX(m)
+V_max = Axy_max * Lz_max # Maximum volume of the HX(m^3)
 
 
-phi_single = 0.5*phi_tot
-# Hydraulic diameter for one side (half-porosity domain)
-D_h_single = 4 * phi_single * Lc**3 / A_wet
+# %% Read csv file with TPMS data and create a dictionary with the data
+TPMS_data = pd.read_csv('Dati_TPMS.csv', sep=';')
+TPMS_dict = {}
+for _, row in TPMS_data.iterrows():
+    key = (
+        row['Type'], 
+        float(row['s_mm'])
+        )
+    TPMS_dict[key] = (float(row['A_wet_m2']), float(row['Phi']))
 
-N_cell_max = V_max / Lc**3 # Maximum number of cells that can fit in the given volume
+# %% For cicle, on different TPMS
+Type_vec = ['D', 'G', 'G']
+Lc_vec = [10, 10, 15] # mm
+thickness_vec = [1, 1, 1] # mm
+NxNy_vec = [25, 25, 12]
 
-# Reynolds number
-Re_h  = (4 * m_h/NxNy * Lc) / (A_wet * mu) # Reynolds number for the hot fluid
-Re_c  = (4 * m_c/NxNy * Lc) / (A_wet * mu) # Reynolds number for the cold fluid
-
-# Heat transfer coefficients
-Nu_hot = Nusselt_number(Re_h, Pr, tpms_type) # Nusselt number for the hot fluid
-Nu_cold = Nusselt_number(Re_c, Pr, tpms_type) # Nusselt number for the cold fluid
-h_hot = Nu_hot * k_air / D_h_single # Heat transfer coefficient for the hot fluid
-h_cold = Nu_cold * k_air / D_h_single # Heat transfer coefficient for the cold fluid
-
-# Overall heat transfer coefficient
-U = overall_heat_transfer_coefficient(h_hot, h_cold, k_r, thickness) # Overall heat transfer coefficient (W/m^2*K)
-
-# Type of HX
-hx_type = 'countercurrent' # Type of heat exchanger (countercurrent, cocurrent)
-
-# %% Calculations
-# Calculate the required heat transfer 
-q_max = min(m_h * cp * (T_hi - T_ci), m_c * cp * (T_hi - T_ci)) # Maximum possible heat transfer rate (W)
-q = eps * q_max # Actual heat transfer rate (W)
-T_ho = T_hi - q / (m_h * cp) # Outlet temperature of hot fluid (°C)
-T_co = T_ci + q / (m_c * cp) # Outlet temperature of cold fluid (°C)
-
-# Calculate the log mean temperature difference
-if hx_type == 'countercurrent':
-    DT1 = T_hi - T_co
-    DT2 = T_ho - T_ci
-elif hx_type == 'cocurrent':
-    DT1 = T_hi - T_ci
-    DT2 = T_ho - T_co
-DT_ml =  (DT1 - DT2) / np.log(DT1 / DT2) # Log mean temperature difference (°C)
-
-# Calculate the required heat transfer area and the number of cells
-A = q / (U * DT_ml) # Required heat transfer area (m^2)
-N_cell = A / A_wet # Number of cells required
-
-Nz_max = N_cell_max / NxNy # Maximum number of cells in the z direction based on the volume constraint
-Nz = N_cell / NxNy # Number of cells in the z direction required to achieve the desired UA
-# %% Output results
 plt.figure(figsize=(10, 6))
-plt.subplot(1, 2, 1)
-plt.plot(eps, A, marker='o')
-plt.title('Area required vs Effectiveness')
-plt.xlabel('Effectiveness (ε)')
-plt.ylabel('Required Area (m^2)')
-plt.grid()
-plt.subplot(1, 2, 2)
-plt.plot(eps, Nz, marker='o', color='orange')
-plt.axhline(y=Nz_max, color='red', linestyle='--', label='Maximum Nz')
-plt.legend()
+for Type, Lc, thickness, NxNy in zip(Type_vec, Lc_vec, thickness_vec, NxNy_vec):
+
+    # Trasmittance of the single cell of the TPMS
+    TPMS_key = (Type, Lc)
+    A_wet, phi_cell = TPMS_dict[TPMS_key]
+
+    phi_cell = phi_cell / 100 # Convert porosity from percentage to fraction
+    Lc = Lc * 1e-3 # Convert characteristic length from mm to m
+
+    phi_single = phi_cell / 2 # Porosity of the single cell (assuming half of the cell is occupied by the hot fluid and half by the cold fluid)
+    Dh_single = 4 * phi_single * Lc**3/A_wet # Hydraulic diameter of the single cell (m)
+
+    # limit values
+    NxNy_max = int(np.floor(Axy_max / (Lc)**2)) # Maximum number of cells in x and y directions based on the maximum cross-sectional area
+    Nz_max = int(np.floor(Lz_max / Lc)) # Maximum number of cells in the z direction based on the maximum length
+    N_max = NxNy_max * Nz_max # Maximum number of cells based on the maximum volume
+
+    # Reynolds number
+    Re_h  = (4 * m_h/NxNy * Lc) / (A_wet * mu) # Reynolds number for the hot fluid
+    Re_c  = (4 * m_c/NxNy * Lc) / (A_wet * mu) # Reynolds number for the cold fluid
+
+    # Heat transfer coefficients
+    Nu_hot = Nusselt_number(Re_h, Pr, Type) # Nusselt number for the hot fluid
+    Nu_cold = Nusselt_number(Re_c, Pr, Type) # Nusselt number for the cold fluid
+    h_hot = Nu_hot * k_air / Dh_single # Heat transfer coefficient for the hot fluid
+    h_cold = Nu_cold * k_air / Dh_single # Heat transfer coefficient for the cold fluid
+
+    # Overall heat transfer coefficient
+    U = overall_heat_transfer_coefficient(h_hot, h_cold, k_r, thickness*1e-3) # Overall heat transfer coefficient (W/m^2*K)
+
+    # Type of HX
+    hx_type = 'countercurrent' # Type of heat exchanger (countercurrent, cocurrent)
+
+    # Calculations
+    # Calculate the required heat transfer 
+    q_max = min(m_h * cp * (T_hi - T_ci), m_c * cp * (T_hi - T_ci)) # Maximum possible heat transfer rate (W)
+    q = eps * q_max # Actual heat transfer rate (W)
+    T_ho = T_hi - q / (m_h * cp) # Outlet temperature of hot fluid (°C)
+    T_co = T_ci + q / (m_c * cp) # Outlet temperature of cold fluid (°C)
+
+    # Calculate the log mean temperature difference
+    if hx_type == 'countercurrent':
+        DT1 = T_hi - T_co
+        DT2 = T_ho - T_ci
+    elif hx_type == 'cocurrent':
+        DT1 = T_hi - T_ci
+        DT2 = T_ho - T_co
+    DT_ml =  (DT1 - DT2) / np.log(DT1 / DT2) # Log mean temperature difference (°C)
+
+    # Calculate the required heat transfer area and the number of cells
+    A = q / (U * DT_ml) # Required heat transfer area (m^2)
+    N_cell = A / A_wet # Number of cells required
+    Nz = N_cell / NxNy # Number of cells in the z direction
+
+    # Output results
+    label = f'Type {Type}, Lc={Lc*1e3:.0f} mm, Thickness={thickness:.0f} mm, NxNy={NxNy}, NxNy_max={NxNy_max:.0f}'
+    line, = plt.plot(eps, Nz, marker='o', label=label)
+    label_max = f'Maximum Nz for Type {Type}, Lc={Lc*1e3:.0f} mm'
+    plt.axhline(y=Nz_max, color=line.get_color(), linestyle='--', label=label_max)
+    
+
+
+plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
 plt.title('Number of cells required vs Effectiveness')
 plt.xlabel('Effectiveness (ε)')
-plt.ylabel('Number of cells required')
+plt.ylabel('Nz')
 plt.grid()
+plt.tight_layout()
 plt.show()
