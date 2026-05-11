@@ -13,8 +13,8 @@ Pr = 0.71 # Prandtl number for air
 k_r = 0.2 # Thermal conductivity of resin (W/m*K)
 
 # Parameters of flow
-m_h =  3.1e-4 * 100# Mass flow rate (kg/s)
-m_c = 6.7e-5 * 100 # Mass flow rate (kg/s)
+m_h =  3.1e-4# Mass flow rate (kg/s)
+m_c = 6.7e-5 # Mass flow rate (kg/s)
 T_hi = 50 # Inlet temperature of hot fluid (°C)
 T_ci = 20 # Inlet temperature of cold fluid (°C) [= T_amb = 18/25°C]
 eps =  np.linspace(0.05, 0.9, 10) # Effectiveness of the heat exchanger (range: 0.5 to 0.9)
@@ -29,16 +29,34 @@ hx_type = 'countercurrent' # Type of heat exchanger (countercurrent or cocurrent
 
 # Read csv file with TPMS data and create a dictionary with the data
 SCRIPT_DIR = Path(__file__).resolve().parent
+FIGURES_DIR = SCRIPT_DIR / 'Figures'
+FIGURES_DIR.mkdir(exist_ok=True)
 TPMS_data = pd.read_csv(SCRIPT_DIR / 'TPMS data.csv', sep=';')
+
+
+def get_first_available_value(row, column_names):
+    for column_name in column_names:
+        if column_name in row and pd.notna(row[column_name]):
+            return row[column_name]
+    raise KeyError(f"Missing required columns: {column_names}")
+
+
 TPMS_dict = {}
 for _, row in TPMS_data.iterrows():
-    key = (
-        row['Type'], 
-        float(row['Lc [mm]']), 
-        float(row['Thickness [mm]']), 
-        float(row['NxNy'])
+    try:
+        key = (
+            row['Type'],
+            float(row['Lc [mm]']),
+            float(row['Thickness [mm]']),
+            float(row['NxNy'])
         )
-    TPMS_dict[key] = float(row['UA_cell [W/K]'])
+        TPMS_dict[key] = {
+            'UA_cell': float(get_first_available_value(row, ['UA_cell [W/K]', 'UA_cell'])),
+            'V_cell': float(get_first_available_value(row, ['V_cell [mm3]', 'V_cell', 'V_resin_percell [mm3]'])),
+        }
+    except (KeyError, ValueError):
+        print(f"Skipping incomplete TPMS row: {row.to_dict()}")
+        continue
 
 # %% TPMS parameters
 configurations = [
@@ -84,7 +102,9 @@ for config in configurations:
         print(f'Skipping missing TPMS data for {TPMS_key}')
         continue
 
-    UA_cell = TPMS_dict[TPMS_key]
+    TPMS_entry = TPMS_dict[TPMS_key]
+    UA_cell = TPMS_entry['UA_cell']
+    V_resin_cell = TPMS_entry['V_cell']
 
     # limit values
     NxNy_max = int(np.floor(Axy_max / (Lc * 1e-3)**2)) # Maximum number of cells in x and y directions based on the maximum cross-sectional area
@@ -92,10 +112,11 @@ for config in configurations:
 
     N_cells = UA / UA_cell # Number of cells required to achieve the desired UA
     Nz = N_cells / NxNy # Number of cells in the z direction
+    V_resin = N_cells * V_resin_cell # Total volume of resin required
 
-    legend_label = f'Type {Type}, Lc={Lc} mm, Thickness={Thickness} mm, NxNy={NxNy}, NxNy_max={NxNy_max}'
+    legend_label = (f'Type {Type}, Lc={Lc} mm, Thickness={Thickness} mm, NxNy={NxNy}, \n NxNy_max={NxNy_max}, Nz_max={Nz_max}')
     line, = plt.plot(eps, Nz, marker='o', label=legend_label)
-    plt.axhline(y=Nz_max, color=line.get_color(), linestyle='--', label=f'Maximum Nz = {Nz_max}')
+    #plt.axhline(y=Nz_max, color=line.get_color(), linestyle='--', label=f'Maximum Nz = {Nz_max}')
 
 plt.title('Number of Cells along z vs Effectiveness')
 plt.xlabel('ε')
@@ -103,5 +124,38 @@ plt.ylabel('Nz')
 plt.grid()
 plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
 plt.tight_layout()
-plt.savefig(SCRIPT_DIR / 'Number_of_cells_STAR.png', bbox_inches='tight', dpi=300)
+plt.savefig(FIGURES_DIR / 'Number_of_cells_STAR.png', bbox_inches='tight', dpi=300)
 plt.close()
+
+plt.figure(figsize=(10, 6))
+
+for config in configurations:
+    Type = config['Type']
+    Lc = config['Lc']
+    Thickness = config['Thickness']
+    NxNy = config['NxNy']
+
+    TPMS_key = (Type, Lc, Thickness, NxNy)
+    if TPMS_key not in TPMS_dict:
+        continue
+
+    TPMS_entry = TPMS_dict[TPMS_key]
+    UA_cell = TPMS_entry['UA_cell']
+    V_resin_cell = TPMS_entry['V_cell']
+
+    N_cells = UA / UA_cell
+    V_resin = N_cells * V_resin_cell # Total resin volume in mm^3
+
+    legend_label = f'Type {Type}, Lc={Lc} mm, Thickness={Thickness} mm, NxNy={NxNy}'
+    line, = plt.plot(eps, V_resin, marker='o', label=legend_label)
+    #plt.axhline(y=V_max, color=line.get_color(), linestyle='--', label=f'Maximum V = {V_max:.3e} m^3')
+
+plt.title('Total Resin Volume vs Effectiveness')
+plt.xlabel('ε')
+plt.ylabel('V_resin [mm^3]')
+plt.grid()
+plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+plt.tight_layout()
+plt.savefig(FIGURES_DIR / 'Total_resin_volume_STAR.png', bbox_inches='tight', dpi=300)
+plt.close()
+# %%
