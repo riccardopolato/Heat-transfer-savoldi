@@ -129,7 +129,7 @@ plt.close()
 
 plt.figure(figsize=(10, 6))
 
-print(f"{'Type':<8} {'Lc':>6} {'Thickness':>10} {'NxNy':>6} {'V_resin_6cells [mm^3]':>24}")
+print(f"{'Type':<8} {'Lc':>6} {'Thickness':>10} {'NxNy':>6} {'V_resin [m^3]':>24}")
 
 for config in configurations:
     Type = config['Type']
@@ -148,9 +148,9 @@ for config in configurations:
     N_cells = UA / UA_cell
     V_resin = N_cells * V_resin_cell # Total resin volume in mm^3
     if Lc ==  10:
-        V_resin_actual = NxNy * 6 * V_resin_cell
+        V_resin_actual = NxNy * 6 * V_resin_cell * 1e-3 
     elif Lc == 15:
-        V_resin_actual = NxNy * 4 * V_resin_cell
+        V_resin_actual = NxNy * 4 * V_resin_cell * 1e-3 
 
     print(f"{Type:<8} {Lc:>6} {Thickness:>10} {NxNy:>6} {V_resin_actual:>24.3f}")
 
@@ -165,5 +165,47 @@ plt.grid()
 plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
 plt.tight_layout()
 plt.savefig(FIGURES_DIR / 'Total_resin_volume_STAR.png', bbox_inches='tight', dpi=300)
+plt.close()
+
+# %% Coefficient ξ = UA_cell / V_resin_per_cell
+xi_values = []
+xi_labels = []
+
+for config in configurations:
+    Type = config['Type']
+    Lc = config['Lc']
+    Thickness = config['Thickness']
+    NxNy = config['NxNy']
+
+    TPMS_key = (Type, Lc, Thickness, NxNy)
+    if TPMS_key not in TPMS_dict:
+        continue
+
+    TPMS_entry = TPMS_dict[TPMS_key]
+    UA_cell = TPMS_entry['UA_cell']
+    V_resin_cell = TPMS_entry['V_cell'] * 1e-3 # V_cell in m^3
+
+    # Calculate coefficient ξ
+    xi = UA_cell / V_resin_cell
+    xi_values.append(xi)
+    
+    label = f'{Type}\nLc={Lc}mm\nTh={Thickness}mm\nN={NxNy}'
+    xi_labels.append(label)
+
+plt.figure(figsize=(12, 6))
+bars = plt.bar(range(len(xi_values)), xi_values, color='steelblue', edgecolor='black')
+
+# Add value labels on top of bars
+for i, (bar, value) in enumerate(zip(bars, xi_values)):
+    plt.text(bar.get_x() + bar.get_width()/2, bar.get_height() + max(xi_values)*0.02, 
+             f'{value:.4f}', ha='center', va='bottom', fontsize=9)
+
+plt.xlabel('Configurazione TPMS', fontsize=11)
+plt.ylabel('ξ = UA_cell / V_resin_per_cell [W/(K·m³)]', fontsize=11)
+plt.title('Performance Coefficient ξ on different TPMS configurations', fontsize=12, fontweight='bold')
+plt.xticks(range(len(xi_labels)), xi_labels, fontsize=9)
+plt.grid(axis='y', alpha=0.3)
+plt.tight_layout()
+plt.savefig(FIGURES_DIR / 'Coefficient_xi_STAR.png', bbox_inches='tight', dpi=300)
 plt.close()
 # %%
