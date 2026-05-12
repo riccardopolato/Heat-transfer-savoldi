@@ -147,9 +147,12 @@ for config in configurations:
 
     N_cells = UA / UA_cell
     V_resin = N_cells * V_resin_cell # Total resin volume in mm^3
-    V_resin_6cells = NxNy * 6 * V_resin_cell 
+    if Lc ==  10:
+        V_resin_actual = NxNy * 6 * V_resin_cell
+    elif Lc == 15:
+        V_resin_actual = NxNy * 4 * V_resin_cell
 
-    print(f"{Type:<8} {Lc:>6} {Thickness:>10} {NxNy:>6} {V_resin_6cells:>24.3f}")
+    print(f"{Type:<8} {Lc:>6} {Thickness:>10} {NxNy:>6} {V_resin_actual:>24.3f}")
 
     legend_label = f'Type {Type}, Lc={Lc} mm, Thickness={Thickness} mm, NxNy={NxNy}'
     line, = plt.plot(eps, V_resin, marker='o', label=legend_label)
