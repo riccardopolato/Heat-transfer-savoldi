@@ -17,7 +17,7 @@ m_h =  3.1e-4# Mass flow rate (kg/s)
 m_c = 6.7e-5 # Mass flow rate (kg/s)
 T_hi = 50 # Inlet temperature of hot fluid (°C)
 T_ci = 20 # Inlet temperature of cold fluid (°C) [= T_amb = 18/25°C]
-eps =  np.linspace(0.05, 0.9, 10) # Effectiveness of the heat exchanger (range: 0.5 to 0.9)
+eps =  np.linspace(0.01, 1, 10) # Effectiveness of the heat exchanger (range: 0.5 to 0.9)
 
 # Maximum volume of the heat exchanger
 Axy_max = (55 - 2) * (65 - 2) * 1e-6 # Maximum cross-sectional area of the HX (m^2)
@@ -129,6 +129,8 @@ plt.close()
 
 plt.figure(figsize=(10, 6))
 
+print(f"{'Type':<8} {'Lc':>6} {'Thickness':>10} {'NxNy':>6} {'V_resin_6cells [mm^3]':>24}")
+
 for config in configurations:
     Type = config['Type']
     Lc = config['Lc']
@@ -145,6 +147,9 @@ for config in configurations:
 
     N_cells = UA / UA_cell
     V_resin = N_cells * V_resin_cell # Total resin volume in mm^3
+    V_resin_6cells = NxNy * 6 * V_resin_cell 
+
+    print(f"{Type:<8} {Lc:>6} {Thickness:>10} {NxNy:>6} {V_resin_6cells:>24.3f}")
 
     legend_label = f'Type {Type}, Lc={Lc} mm, Thickness={Thickness} mm, NxNy={NxNy}'
     line, = plt.plot(eps, V_resin, marker='o', label=legend_label)
