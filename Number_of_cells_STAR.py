@@ -129,7 +129,7 @@ plt.close()
 
 plt.figure(figsize=(10, 6))
 
-print(f"{'Type':<8} {'Lc':>6} {'Thickness':>10} {'NxNy':>6} {'V_resin [m^3]':>24}")
+print(f"{'Type':<8} {'Lc':>6} {'Thickness':>10} {'NxNy':>6} {'V_resin [cm^3]':>24}")
 
 for config in configurations:
     Type = config['Type']
@@ -148,15 +148,15 @@ for config in configurations:
     N_cells = UA / UA_cell
     V_resin = N_cells * V_resin_cell # Total resin volume in mm^3
     if Lc ==  10:
-        V_resin_actual = NxNy * 6 * V_resin_cell * 1e-3 
+        V_resin_actual = NxNy * 9 * V_resin_cell * 1e-3 
     elif Lc == 15:
-        V_resin_actual = NxNy * 4 * V_resin_cell * 1e-3 
+        V_resin_actual = NxNy * 6 * V_resin_cell * 1e-3 
 
     print(f"{Type:<8} {Lc:>6} {Thickness:>10} {NxNy:>6} {V_resin_actual:>24.3f}")
 
     legend_label = f'Type {Type}, Lc={Lc} mm, Thickness={Thickness} mm, NxNy={NxNy}'
     line, = plt.plot(eps, V_resin, marker='o', label=legend_label)
-    #plt.axhline(y=V_max, color=line.get_color(), linestyle='--', label=f'Maximum V = {V_max:.3e} m^3')
+    #plt.axhline(y=V_max, color=line.get_color(), linestyle='--', label=f'Maximum V = {V_max:.3e} mm^3')
 
 plt.title('Total Resin Volume vs Effectiveness')
 plt.xlabel('ε')
@@ -183,7 +183,7 @@ for config in configurations:
 
     TPMS_entry = TPMS_dict[TPMS_key]
     UA_cell = TPMS_entry['UA_cell']
-    V_resin_cell = TPMS_entry['V_cell'] * 1e-3 # V_cell in m^3
+    V_resin_cell = TPMS_entry['V_cell'] * 1e-3  # V_cell in cm^3
 
     # Calculate coefficient ξ
     xi = UA_cell / V_resin_cell
@@ -201,7 +201,7 @@ for i, (bar, value) in enumerate(zip(bars, xi_values)):
              f'{value:.4f}', ha='center', va='bottom', fontsize=9)
 
 plt.xlabel('Configurazione TPMS', fontsize=11)
-plt.ylabel('ξ = UA_cell / V_resin_per_cell [W/(K·m³)]', fontsize=11)
+plt.ylabel('ξ = UA_cell / V_resin_per_cell [W/(K·cm³)]', fontsize=11)
 plt.title('Performance Coefficient ξ on different TPMS configurations', fontsize=12, fontweight='bold')
 plt.xticks(range(len(xi_labels)), xi_labels, fontsize=9)
 plt.grid(axis='y', alpha=0.3)
